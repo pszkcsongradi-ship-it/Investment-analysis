@@ -357,56 +357,127 @@ function configureModeUI(){
 
 function draw(){
   const c=$("chart"), ctx=c.getContext("2d");
-  const v=vals(); if(!(v.sigma>0)) return;
-  const W=c.width,H=c.height, pad={l:50,r:18,t:22,b:42};
+  const v=vals();
+  if(!(v.sigma>0)) return;
+
+  const m=activeMode();
+  const standard = (m.id==="sdist" || m.id==="sinv");
+  const mu = standard ? 0 : v.mu;
+  const sigma = standard ? 1 : v.sigma;
+
+  const W=c.width, H=c.height;
+  const pad={l:72,r:24,t:26,b:58};
   ctx.clearRect(0,0,W,H);
-  const lo=v.mu-4*v.sigma, hi=v.mu+4*v.sigma;
-  const ymax=pdf(v.mu,v.mu,v.sigma)*1.1;
+  ctx.fillStyle="#ffffff";
+  ctx.fillRect(0,0,W,H);
+
+  const lo=mu-4*sigma, hi=mu+4*sigma;
+  const isDensity=(m.id==="density");
+  const ymax=isDensity ? pdf(mu,mu,sigma)*1.18 : 1.05;
   const X=x=>pad.l+(x-lo)/(hi-lo)*(W-pad.l-pad.r);
   const Y=y=>H-pad.b-y/ymax*(H-pad.t-pad.b);
 
-  ctx.strokeStyle="#c9ced8"; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(pad.l,H-pad.b); ctx.lineTo(W-pad.r,H-pad.b); ctx.stroke();
+  // light grid
+  ctx.strokeStyle="#e6e9ef";
+  ctx.lineWidth=1;
+  ctx.setLineDash([4,4]);
+  const xTicks=[mu-sigma,mu,mu+sigma];
+  const yTicks=isDensity ? [0,pdf(mu,mu,sigma)] : [0,0.5,1];
+  yTicks.forEach(y=>{ctx.beginPath();ctx.moveTo(pad.l,Y(y));ctx.lineTo(W-pad.r,Y(y));ctx.stroke();});
+  xTicks.forEach(x=>{ctx.beginPath();ctx.moveTo(X(x),pad.t);ctx.lineTo(X(x),H-pad.b);ctx.stroke();});
+  ctx.setLineDash([]);
 
-  const m=activeMode();
-  let cutoff=null;
-  if(m.id==="dist"||m.id==="sdist") cutoff=v.x;
-  if(m.id==="inv") cutoff=v.mu+v.sigma*invNorm(v.p);
-  if(m.id==="sinv") cutoff=v.mu+v.sigma*invNorm(v.p);
-  if(cutoff!==null){
-    ctx.fillStyle="rgba(88,110,150,.18)";
-    ctx.beginPath(); ctx.moveTo(X(lo),Y(0));
-    for(let i=0;i<=300;i++){
-      let x=lo+(hi-lo)*i/300;
-      if(x>cutoff) break;
-      ctx.lineTo(X(x),Y(pdf(x,v.mu,v.sigma)));
-    }
-    ctx.lineTo(X(Math.min(cutoff,hi)),Y(0)); ctx.closePath(); ctx.fill();
-  }
-
-  ctx.strokeStyle="#344054"; ctx.lineWidth=2;
+  // coordinate axes
+  ctx.strokeStyle="#344054";
+  ctx.lineWidth=1.6;
   ctx.beginPath();
-  for(let i=0;i<=400;i++){
-    let x=lo+(hi-lo)*i/400,y=pdf(x,v.mu,v.sigma);
-    if(i===0)ctx.moveTo(X(x),Y(y)); else ctx.lineTo(X(x),Y(y));
+  ctx.moveTo(pad.l,pad.t);
+  ctx.lineTo(pad.l,H-pad.b);
+  ctx.lineTo(W-pad.r,H-pad.b);
+  ctx.stroke();
+
+  // arrow heads
+  ctx.fillStyle="#344054";
+  ctx.beginPath();ctx.moveTo(W-pad.r,H-pad.b);ctx.lineTo(W-pad.r-8,H-pad.b-4);ctx.lineTo(W-pad.r-8,H-pad.b+4);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l-4,pad.t+8);ctx.lineTo(pad.l+4,pad.t+8);ctx.closePath();ctx.fill();
+
+  // axis labels
+  ctx.font="15px Arial";
+  ctx.fillStyle="#344054";
+  ctx.textAlign="center";
+  ctx.fillText(standard ? "z" : "Return (x)",W-pad.r-36,H-16);
+  ctx.save();ctx.translate(18,(pad.t+H-pad.b)/2);ctx.rotate(-Math.PI/2);ctx.fillText(isDensity ? "f(x)" : "F(x)",0,0);ctx.restore();
+
+  function xLabel(x){return standard ? x.toFixed(2) : (x*100).toFixed(1)+"%";}
+
+  // axis tick labels
+  ctx.font="13px Arial";
+  ctx.fillStyle="#475467";
+  ctx.textAlign="center";
+  xTicks.forEach(x=>{
+    ctx.beginPath();ctx.moveTo(X(x),H-pad.b-5);ctx.lineTo(X(x),H-pad.b+5);ctx.strokeStyle="#344054";ctx.stroke();
+    ctx.fillText(xLabel(x),X(x),H-pad.b+22);
+  });
+  ctx.textAlign="right";
+  yTicks.forEach(y=>{
+    ctx.beginPath();ctx.moveTo(pad.l-5,Y(y));ctx.lineTo(pad.l+5,Y(y));ctx.strokeStyle="#344054";ctx.stroke();
+    const lab=isDensity ? (y===0 ? "0" : y.toFixed(2)) : y.toFixed(1);
+    ctx.fillText(lab,pad.l-10,Y(y)+4);
+  });
+
+  // function curve: density or CDF
+  ctx.strokeStyle="#315ea8";
+  ctx.lineWidth=3;
+  ctx.beginPath();
+  for(let i=0;i<=500;i++){
+    const xx=lo+(hi-lo)*i/500;
+    const yy=isDensity ? pdf(xx,mu,sigma) : cdf((xx-mu)/sigma);
+    if(i===0) ctx.moveTo(X(xx),Y(yy)); else ctx.lineTo(X(xx),Y(yy));
   }
   ctx.stroke();
 
-  const marker = (m.id==="inv") ? v.mu+v.sigma*invNorm(v.p)
-               : (m.id==="sinv") ? v.mu+v.sigma*invNorm(v.p) : v.x;
-  ctx.strokeStyle="#8a3440"; ctx.lineWidth=1.5;
-  ctx.beginPath(); ctx.moveTo(X(marker),Y(0)); ctx.lineTo(X(marker),Y(pdf(marker,v.mu,v.sigma))); ctx.stroke();
+  // task-specific point
+  let markerX,markerY,markerText="";
+  if(m.id==="dist"){
+    markerX=v.x; markerY=cdf((v.x-v.mu)/v.sigma); markerText=`x = ${pct(v.x)}, F(x) = ${markerY.toFixed(4)}`;
+  }else if(m.id==="sdist"){
+    markerX=(v.x-v.mu)/v.sigma; markerY=cdf(markerX); markerText=`z = ${markerX.toFixed(3)}, Φ(z) = ${markerY.toFixed(4)}`;
+  }else if(m.id==="inv"){
+    markerX=v.mu+v.sigma*invNorm(v.p); markerY=v.p; markerText=`p = ${v.p.toFixed(3)}, x = ${pct(markerX)}`;
+  }else if(m.id==="sinv"){
+    markerX=invNorm(v.p); markerY=v.p; markerText=`p = ${v.p.toFixed(3)}, z = ${markerX.toFixed(3)}`;
+  }else{
+    markerX=v.x; markerY=pdf(v.x,v.mu,v.sigma); markerText=`x = ${pct(v.x)}, f(x) = ${markerY.toFixed(4)}`;
+  }
 
-  ctx.fillStyle="#475467"; ctx.font="14px Arial";
-  ctx.fillText((lo*100).toFixed(1)+"%",pad.l-10,H-15);
-  ctx.fillText((v.mu*100).toFixed(1)+"%",X(v.mu)-15,H-15);
-  ctx.fillText((hi*100).toFixed(1)+"%",W-pad.r-40,H-15);
+  if(markerX>=lo && markerX<=hi){
+    ctx.setLineDash([6,4]);
+    ctx.strokeStyle="#9a3f4d";
+    ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(X(markerX),H-pad.b);ctx.lineTo(X(markerX),Y(markerY));ctx.stroke();
+    ctx.beginPath();ctx.moveTo(pad.l,Y(markerY));ctx.lineTo(X(markerX),Y(markerY));ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="#9a3f4d";
+    ctx.beginPath();ctx.arc(X(markerX),Y(markerY),5,0,2*Math.PI);ctx.fill();
+    ctx.font="bold 13px Arial";
+    ctx.textAlign="center";ctx.fillText(xLabel(markerX),X(markerX),H-pad.b+40);
+    ctx.textAlign="right";ctx.fillText(markerY.toFixed(3),pad.l-10,Y(markerY)+4);
+  }
 
-  $("graphNote").textContent = m.id==="density"
-    ? "The vertical marker shows the x-value where the density height is evaluated."
-    : "The shaded area represents the relevant left-tail cumulative probability.";
+  ctx.fillStyle="#101828";
+  ctx.font="bold 16px Arial";
+  ctx.textAlign="left";
+  const title=isDensity
+    ? `Normal density: μ = ${pct(v.mu)}, σ = ${pct(v.sigma)}`
+    : standard
+      ? "Standard normal cumulative distribution Φ(z)"
+      : `Normal cumulative distribution: μ = ${pct(v.mu)}, σ = ${pct(v.sigma)}`;
+  ctx.fillText(title,pad.l+8,pad.t+6);
+
+  $("graphNote").textContent = isDensity
+    ? `The graph shows the density function f(x). ${markerText}. The height of the curve is not a probability.`
+    : `The graph shows the cumulative distribution function. ${markerText}. The y-value is the probability to the left of the marked x- or z-value.`;
 }
-
 const tabs=$("tabs");
 modes.forEach((m,i)=>{
   const b=document.createElement("button");
