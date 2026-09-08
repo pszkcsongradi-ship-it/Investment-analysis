@@ -77,8 +77,8 @@ canvas{width:100%;height:420px;border:1px solid var(--line);border-radius:10px;b
 
       <div class="answer-row">
         <div>
-          <label for="answer"><strong>Your numerical answer</strong></label>
-          <input id="answer" type="number" step="any" placeholder="Enter your result">
+          <label for="answer"><strong>Decimal answer (4 decimal places)</strong></label>
+          <input id="answer" type="number" step="0.0001" placeholder="e.g. 0.4404">
         </div>
         <button class="primary" id="check">Check</button>
       </div>
@@ -258,30 +258,74 @@ function resetGraph(){
 }
 
 function check(){
-  const u=parseFloat($("answer").value);
+  const raw=$("answer").value.trim();
+  const u=parseFloat(raw);
   if(!Number.isFinite(u)){
     $("feedback").className="feedback bad";
-    $("feedback").textContent="Enter a numerical answer.";
+    $("feedback").textContent="Enter your answer as a decimal rounded to 4 decimal places.";
     return;
   }
   const r=taskResult();
-  const tol=Math.max(.0006,Math.abs(r)*.005);
-  if(Math.abs(u-r)<=tol){
+  const rounded=Number(r.toFixed(4));
+  const tol=0.00005;
+  if(Math.abs(u-rounded)<=tol){
     $("feedback").className="feedback good";
     $("feedback").textContent="Correct.";
   }else{
     $("feedback").className="feedback bad";
-    $("feedback").textContent="Not quite. First identify whether the task asks for an area, a local density value, or the return corresponding to a given area.";
+    $("feedback").textContent="Not quite. Enter the result as a decimal rounded to 4 decimal places.";
   }
+}
+
+
+function calculatorSteps(){
+  if(page==="left"){
+    return `Casio fx-991CW:<br>
+    1. MENU → Distribution → Normal CD<br>
+    2. Lower: enter a very large negative number (e.g. -1E99)<br>
+    3. Upper: ${task.x}<br>
+    4. μ: ${task.mu}<br>
+    5. σ: ${task.sigma}<br>
+    6. Execute the calculation.<br>
+    7. Enter the result above as a decimal rounded to 4 decimal places.`;
+  }
+  if(page==="density"){
+    return `Casio fx-991CW:<br>
+    1. MENU → Distribution → Normal PD<br>
+    2. x: ${task.x}<br>
+    3. μ: ${task.mu}<br>
+    4. σ: ${task.sigma}<br>
+    5. Execute the calculation.<br>
+    6. Enter the density value above as a decimal rounded to 4 decimal places.`;
+  }
+  if(page==="inv"){
+    return `Casio fx-991CW:<br>
+    1. MENU → Distribution → Inverse Normal<br>
+    2. Area: ${task.p}<br>
+    3. μ: ${task.mu}<br>
+    4. σ: ${task.sigma}<br>
+    5. Execute the calculation.<br>
+    6. Enter the resulting return above as a decimal rounded to 4 decimal places.`;
+  }
+  return `Casio fx-991CW:<br>
+    1. MENU → Distribution → Normal CD<br>
+    2. Lower: ${task.x1}<br>
+    3. Upper: ${task.x2}<br>
+    4. μ: ${task.mu}<br>
+    5. σ: ${task.sigma}<br>
+    6. Execute the calculation.<br>
+    7. Enter the result above as a decimal rounded to 4 decimal places.`;
 }
 
 function showSolution(){
   const r=taskResult();
   let text="";
-  if(page==="left"||page==="between") text=`Probability = ${(100*r).toFixed(2)}%`;
+  if(page==="left"||page==="between") text=`Decimal probability = ${r.toFixed(4)} (${(100*r).toFixed(2)}%)`;
   else if(page==="density") text=`Density value = ${r.toFixed(4)}`;
-  else text=`Return = ${pct(r)}`;
-  $("solution").innerHTML=`<strong>Solution:</strong> ${text}<br><strong>Excel:</strong> <span class="code">${excelFormula()}</span>`;
+  else text=`Return = ${r.toFixed(4)} (${pct(r)})`;
+  $("solution").innerHTML=`<strong>Solution:</strong> ${text}<br>
+  <strong>Excel:</strong> <span class="code">${excelFormula()}</span><br><br>
+  <strong>Calculator steps:</strong><br>${calculatorSteps()}`;
   $("solution").style.display="block";
 }
 
