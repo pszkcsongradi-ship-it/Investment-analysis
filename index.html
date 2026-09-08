@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Normal Distribution Practice</title>
+<style>
+:root{
+  --bg:#f6f7fb; --card:#fff; --text:#1f2937; --muted:#667085; --line:#d8dde8;
+  --accent:#315ea8; --accent2:#eaf0fb; --good:#176b3a; --bad:#a52828;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text);line-height:1.45}
+.wrap{max-width:1100px;margin:0 auto;padding:20px}
+header{margin-bottom:16px}
+h1{font-size:clamp(1.55rem,4vw,2.15rem);margin:0 0 6px}
+.sub{color:var(--muted);margin:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+label{font-weight:700;font-size:.92rem;display:block;margin-bottom:5px}
+input,select,button{font:inherit}
+input,select{width:100%;padding:10px 11px;border:1px solid #b8c0cf;border-radius:9px;background:#fff}
+.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+button{border:0;border-radius:9px;padding:11px 14px;cursor:pointer;font-weight:700}
+.primary{background:var(--accent);color:white}
+.secondary{background:#e8ebf2;color:var(--text)}
+.task{font-size:1.08rem;margin:12px 0}
+.answer-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end}
+.feedback{margin-top:10px;font-weight:700;min-height:24px}
+.good{color:var(--good)} .bad{color:var(--bad)}
+.details{margin-top:12px;padding:12px;border-radius:10px;background:#f8fafc;border:1px solid var(--line);display:none}
+.code{font-family:Consolas,monospace;background:#f1f3f7;padding:2px 5px;border-radius:4px}
+canvas{width:100%;height:340px;border:1px solid var(--line);border-radius:10px;background:white}
+.legend{color:var(--muted);font-size:.9rem;margin-top:8px}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 16px}
+.tab{background:#edf0f5;color:#273043}
+.tab.active{background:var(--accent);color:#fff}
+.score{font-weight:700}
+.practice-head{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0 14px}
+.badge{display:inline-block;padding:5px 9px;border-radius:999px;background:#eef2f7;color:#344054;font-size:.85rem;font-weight:700}
+.hidden{display:none!important}
+.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.kpi{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}
+.kpi span{background:#f3f5f8;padding:7px 10px;border-radius:8px;font-size:.9rem}
+@media(max-width:780px){
+  .grid{grid-template-columns:1fr}
+  .controls{grid-template-columns:1fr 1fr}
+  .choice-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .controls{grid-template-columns:1fr}
+  .answer-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Normal Distribution Practice</h1>
+  <p class="sub">Practice NORM.DIST, NORM.S.DIST, NORM.INV, NORM.S.INV and density calculations with changing values.</p>
+</header>
+
+<div class="tabs" id="tabs"></div>
+
+<div class="grid">
+  <section class="card">
+    <div id="manualControls">
+      <div class="controls">
+        <div><label>Mean (μ)</label><input id="mu" type="number" step="0.01"></div>
+        <div><label>Std. dev. (σ)</label><input id="sigma" type="number" step="0.01" min="0.01"></div>
+        <div><label>Return / x</label><input id="x" type="number" step="0.01"></div>
+        <div><label>Probability p</label><input id="p" type="number" step="0.01" min="0.001" max="0.999"></div>
+      </div>
+      <p class="legend">Enter values as decimals: 8% = 0.08, 20% = 0.20.</p>
+    </div>
+
+    <div id="practiceMeta" class="practice-head hidden">
+      <span class="badge" id="practiceNumber">Question 1</span>
+      <span class="badge" id="practiceType">Mixed mode</span>
+      <button class="secondary" id="restartPractice" type="button">Restart practice</button>
+    </div>
+
+    <div class="task" id="taskText"></div>
+
+    <div id="practiceFunctionChoice" class="hidden">
+      <div class="choice-grid">
+        <div>
+          <label for="functionChoice">Which Excel function should you use?</label>
+          <select id="functionChoice">
+            <option value="">Choose a function</option>
+            <option>NORM.DIST</option>
+            <option>NORM.S.DIST</option>
+            <option>NORM.INV</option>
+            <option>NORM.S.INV</option>
+          </select>
+        </div>
+        <div>
+          <label for="trueFalseChoice">Cumulative argument</label>
+          <select id="trueFalseChoice">
+            <option value="">Not applicable / choose</option>
+            <option>TRUE</option>
+            <option>FALSE</option>
+            <option>N/A</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="answer-row" style="margin-top:10px">
+      <div>
+        <label for="answer">Your numerical answer</label>
+        <input id="answer" type="number" step="any" placeholder="Enter your result">
+      </div>
+      <button class="primary" id="check">Check</button>
+    </div>
+
+    <div class="feedback" id="feedback" aria-live="polite"></div>
+
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+      <button class="secondary" id="newValues">New values</button>
+      <button class="secondary" id="showSolution">Show solution</button>
+      <button class="primary hidden" id="nextPractice">Next question</button>
+      <span class="score" id="score"></span>
+    </div>
+
+    <div class="kpi hidden" id="practiceStats">
+      <span id="practiceCorrect">Correct: 0</span>
+      <span id="practiceAttempted">Attempted: 0</span>
+      <span id="practiceStreak">Streak: 0</span>
+    </div>
+
+    <div class="details" id="solution"></div>
+  </section>
+
+  <section class="card">
+    <canvas id="chart" width="760" height="420" aria-label="Normal distribution graph"></canvas>
+    <div class="legend" id="graphNote"></div>
+  </section>
+</div>
+</div>
+
+<script>
+const modes = [
+  {id:"dist", label:"1. NORM.DIST", title:"Cumulative probability",
+   text:v=>`The return R is normally distributed with μ = ${pct(v.mu)} and σ = ${pct(v.sigma)}. Calculate P(R < ${pct(v.x)}).`,
+   fn:"NORM.DIST", tf:"TRUE"},
+  {id:"sdist", label:"2. NORM.S.DIST", title:"Standard normal probability",
+   text:v=>`Standardize x = ${pct(v.x)} for a normal distribution with μ = ${pct(v.mu)} and σ = ${pct(v.sigma)}, then calculate P(Z < z).`,
+   fn:"NORM.S.DIST", tf:"TRUE"},
+  {id:"inv", label:"3. NORM.INV", title:"Inverse normal",
+   text:v=>`The return R is normally distributed with μ = ${pct(v.mu)} and σ = ${pct(v.sigma)}. Determine the return below which ${(100*v.p).toFixed(1)}% of outcomes fall.`,
+   fn:"NORM.INV", tf:"N/A"},
+  {id:"sinv", label:"4. NORM.S.INV", title:"Inverse standard normal",
+   text:v=>`Determine the z-value below which ${(100*v.p).toFixed(1)}% of the standard normal distribution lies.`,
+   fn:"NORM.S.INV", tf:"N/A"},
+  {id:"density", label:"5. Density", title:"Normal density",
+   text:v=>`The return R is normally distributed with μ = ${pct(v.mu)} and σ = ${pct(v.sigma)}. Calculate the value of the probability density function at x = ${pct(v.x)}.`,
+   fn:"NORM.DIST", tf:"FALSE"},
+  {id:"practice", label:"Practice mode", title:"Mixed practice"}
+];
+
+let current = 0, correct=0, attempts=0;
+let practiceCorrect=0, practiceAttempts=0, practiceStreak=0, practiceQuestion=1;
+let practiceModeIndex=0;
+
+const $ = id => document.getElementById(id);
+
+function pct(v){ return (v*100).toFixed(2).replace(/\.00$/,"") + "%"; }
+function vals(){ return {mu:+$("mu").value, sigma:+$("sigma").value, x:+$("x").value, p:+$("p").value}; }
+
+function erf(x){
+  const s = x<0?-1:1; x=Math.abs(x);
+  const a1=.254829592,a2=-.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=.3275911;
+  const t=1/(1+p*x);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return s*y;
+}
+function cdf(z){ return .5*(1+erf(z/Math.SQRT2)); }
+function pdf(x,mu,s){ const z=(x-mu)/s; return Math.exp(-.5*z*z)/(s*Math.sqrt(2*Math.PI)); }
+function invNorm(p){
+  const a=[-39.6968302866538,220.946098424521,-275.928510446969,138.357751867269,-30.6647980661472,2.50662827745924];
+  const b=[-54.4760987982241,161.585836858041,-155.698979859887,66.8013118877197,-13.2806815528857];
+  const c=[-.00778489400243029,-.322396458041136,-2.40075827716184,-2.54973253934373,4.37466414146497,2.93816398269878];
+  const d=[.00778469570904146,.32246712907004,2.445134137143,3.75440866190742];
+  let q,r;
+  if(p<.02425){q=Math.sqrt(-2*Math.log(p)); return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  if(p>.97575){q=Math.sqrt(-2*Math.log(1-p)); return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5])/((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);}
+  q=p-.5; r=q*q;
+  return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+}
+
+function activeMode(){
+  if(modes[current].id==="practice") return modes[practiceModeIndex];
+  return modes[current];
+}
+
+function solve(){
+  const v=vals(), z=(v.x-v.mu)/v.sigma;
+  switch(activeMode().id){
+    case "dist": return cdf(z);
+    case "sdist": return cdf(z);
+    case "inv": return v.mu + v.sigma*invNorm(v.p);
+    case "sinv": return invNorm(v.p);
+    case "density": return pdf(v.x,v.mu,v.sigma);
+  }
+}
+
+function excel(){
+  const v=vals(), z=(v.x-v.mu)/v.sigma;
+  switch(activeMode().id){
+    case "dist": return `=NORM.DIST(${v.x},${v.mu},${v.sigma},TRUE)`;
+    case "sdist": return `z = (${v.x} - ${v.mu}) / ${v.sigma} = ${z.toFixed(4)}<br>=NORM.S.DIST(${z.toFixed(4)},TRUE)`;
+    case "inv": return `=NORM.INV(${v.p},${v.mu},${v.sigma})`;
+    case "sinv": return `=NORM.S.INV(${v.p})`;
+    case "density": return `=NORM.DIST(${v.x},${v.mu},${v.sigma},FALSE)`;
+  }
+}
+function casio(){
+  const v=vals(), z=(v.x-v.mu)/v.sigma;
+  switch(activeMode().id){
+    case "dist": return `Distribution → Normal CD; Lower ≈ −∞, Upper = ${v.x}, μ = ${v.mu}, σ = ${v.sigma}`;
+    case "sdist": return `Distribution → Normal CD; Lower ≈ −∞, Upper = ${z.toFixed(4)}, μ = 0, σ = 1`;
+    case "inv": return `Distribution → Inverse Normal; Area = ${v.p}, μ = ${v.mu}, σ = ${v.sigma}`;
+    case "sinv": return `Distribution → Inverse Normal; Area = ${v.p}, μ = 0, σ = 1`;
+    case "density": return `Distribution → Normal PD; x = ${v.x}, μ = ${v.mu}, σ = ${v.sigma}`;
+  }
+}
+
+function update(){
+  const v=vals();
+  if(!(v.sigma>0) || !(v.p>0 && v.p<1)){
+    $("feedback").textContent="σ must be positive and p must be between 0 and 1.";
+    return;
+  }
+  const m=activeMode();
+  $("taskText").innerHTML=`<strong>${m.title}:</strong> ${m.text(v)}`;
+  $("feedback").textContent="";
+  $("answer").value="";
+  $("solution").style.display="none";
+  $("functionChoice").value="";
+  $("trueFalseChoice").value="";
+  draw();
+}
+
+function showSolution(){
+  const ans=solve();
+  const m=activeMode();
+  let interpretation="";
+  if(m.id==="dist"||m.id==="sdist") interpretation=`Probability = ${(ans*100).toFixed(2)}%`;
+  else if(m.id==="inv") interpretation=`Return = ${pct(ans)}`;
+  else if(m.id==="sinv") interpretation=`z = ${ans.toFixed(4)}`;
+  else interpretation=`Density = ${ans.toFixed(4)} (this is a density height, not a probability).`;
+  $("solution").innerHTML=`<strong>Solution</strong><br>${interpretation}<br><br><strong>Correct function:</strong> ${m.fn}${m.tf!=="N/A" ? `, cumulative = ${m.tf}` : ""}<br><strong>Excel:</strong> <span class="code">${excel()}</span><br><strong>Casio fx-991CW:</strong> ${casio()}`;
+  $("solution").style.display="block";
+}
+
+function setRandomValues(){
+  const mu=(Math.floor(Math.random()*15)-3)/100;
+  const sigma=(Math.floor(Math.random()*18)+5)/100;
+  const x=mu + sigma*((Math.floor(Math.random()*25)-12)/10);
+  const probs=[.01,.025,.05,.10,.20,.80,.90,.95,.975,.99];
+  $("mu").value=mu.toFixed(2);
+  $("sigma").value=sigma.toFixed(2);
+  $("x").value=x.toFixed(3);
+  $("p").value=probs[Math.floor(Math.random()*probs.length)];
+}
+
+function randomize(){
+  setRandomValues();
+  update();
+}
+
+function choosePracticeType(){
+  // equal-ish random mix of the five learning targets
+  practiceModeIndex = Math.floor(Math.random()*5);
+}
+
+function startPractice(reset=true){
+  if(reset){
+    practiceCorrect=0; practiceAttempts=0; practiceStreak=0; practiceQuestion=1;
+  }
+  choosePracticeType();
+  setRandomValues();
+  $("practiceNumber").textContent=`Question ${practiceQuestion}`;
+  $("practiceType").textContent="Mixed mode";
+  $("practiceCorrect").textContent=`Correct: ${practiceCorrect}`;
+  $("practiceAttempted").textContent=`Attempted: ${practiceAttempts}`;
+  $("practiceStreak").textContent=`Streak: ${practiceStreak}`;
+  update();
+}
+
+function check(){
+  const user=parseFloat($("answer").value);
+  if(!Number.isFinite(user)){
+    $("feedback").className="feedback bad";
+    $("feedback").textContent="Enter a numerical answer.";
+    return;
+  }
+  const ans=solve(), tol=Math.max(0.0006,Math.abs(ans)*0.004);
+  const isPractice=modes[current].id==="practice";
+  const m=activeMode();
+
+  let functionOK=true;
+  if(isPractice){
+    const f=$("functionChoice").value;
+    const tf=$("trueFalseChoice").value;
+    functionOK = (f===m.fn) && (tf===m.tf);
+  }
+  const numberOK=Math.abs(user-ans)<=tol;
+  const allOK=functionOK && numberOK;
+
+  if(isPractice){
+    practiceAttempts++;
+    if(allOK){ practiceCorrect++; practiceStreak++; }
+    else practiceStreak=0;
+    $("practiceCorrect").textContent=`Correct: ${practiceCorrect}`;
+    $("practiceAttempted").textContent=`Attempted: ${practiceAttempts}`;
+    $("practiceStreak").textContent=`Streak: ${practiceStreak}`;
+    $("nextPractice").classList.remove("hidden");
+  } else {
+    attempts++;
+    if(numberOK) correct++;
+    $("score").textContent=`Score: ${correct}/${attempts}`;
+  }
+
+  if(allOK){
+    $("feedback").className="feedback good";
+    $("feedback").textContent=isPractice ? "Correct: function choice and numerical result are both right." : "Correct.";
+  } else {
+    $("feedback").className="feedback bad";
+    if(isPractice && !functionOK && !numberOK) $("feedback").textContent="Not quite. Reconsider both the Excel function and the numerical result.";
+    else if(isPractice && !functionOK) $("feedback").textContent="Your number is acceptable, but the Excel function choice is not correct.";
+    else $("feedback").textContent="Not quite. Check the calculation and whether you need a probability, a value, or a density.";
+  }
+}
+
+function nextPractice(){
+  practiceQuestion++;
+  choosePracticeType();
+  setRandomValues();
+  $("practiceNumber").textContent=`Question ${practiceQuestion}`;
+  $("nextPractice").classList.add("hidden");
+  update();
+}
+
+function configureModeUI(){
+  const isPractice=modes[current].id==="practice";
+  $("manualControls").classList.toggle("hidden", isPractice);
+  $("practiceMeta").classList.toggle("hidden", !isPractice);
+  $("practiceFunctionChoice").classList.toggle("hidden", !isPractice);
+  $("practiceStats").classList.toggle("hidden", !isPractice);
+  $("newValues").classList.toggle("hidden", isPractice);
+  $("nextPractice").classList.add("hidden");
+  $("score").classList.toggle("hidden", isPractice);
+  if(isPractice) startPractice(true); else update();
+}
+
+function draw(){
+  const c=$("chart"), ctx=c.getContext("2d");
+  const v=vals(); if(!(v.sigma>0)) return;
+  const W=c.width,H=c.height, pad={l:50,r:18,t:22,b:42};
+  ctx.clearRect(0,0,W,H);
+  const lo=v.mu-4*v.sigma, hi=v.mu+4*v.sigma;
+  const ymax=pdf(v.mu,v.mu,v.sigma)*1.1;
+  const X=x=>pad.l+(x-lo)/(hi-lo)*(W-pad.l-pad.r);
+  const Y=y=>H-pad.b-y/ymax*(H-pad.t-pad.b);
+
+  ctx.strokeStyle="#c9ced8"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(pad.l,H-pad.b); ctx.lineTo(W-pad.r,H-pad.b); ctx.stroke();
+
+  const m=activeMode();
+  let cutoff=null;
+  if(m.id==="dist"||m.id==="sdist") cutoff=v.x;
+  if(m.id==="inv") cutoff=v.mu+v.sigma*invNorm(v.p);
+  if(m.id==="sinv") cutoff=v.mu+v.sigma*invNorm(v.p);
+  if(cutoff!==null){
+    ctx.fillStyle="rgba(88,110,150,.18)";
+    ctx.beginPath(); ctx.moveTo(X(lo),Y(0));
+    for(let i=0;i<=300;i++){
+      let x=lo+(hi-lo)*i/300;
+      if(x>cutoff) break;
+      ctx.lineTo(X(x),Y(pdf(x,v.mu,v.sigma)));
+    }
+    ctx.lineTo(X(Math.min(cutoff,hi)),Y(0)); ctx.closePath(); ctx.fill();
+  }
+
+  ctx.strokeStyle="#344054"; ctx.lineWidth=2;
+  ctx.beginPath();
+  for(let i=0;i<=400;i++){
+    let x=lo+(hi-lo)*i/400,y=pdf(x,v.mu,v.sigma);
+    if(i===0)ctx.moveTo(X(x),Y(y)); else ctx.lineTo(X(x),Y(y));
+  }
+  ctx.stroke();
+
+  const marker = (m.id==="inv") ? v.mu+v.sigma*invNorm(v.p)
+               : (m.id==="sinv") ? v.mu+v.sigma*invNorm(v.p) : v.x;
+  ctx.strokeStyle="#8a3440"; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(X(marker),Y(0)); ctx.lineTo(X(marker),Y(pdf(marker,v.mu,v.sigma))); ctx.stroke();
+
+  ctx.fillStyle="#475467"; ctx.font="14px Arial";
+  ctx.fillText((lo*100).toFixed(1)+"%",pad.l-10,H-15);
+  ctx.fillText((v.mu*100).toFixed(1)+"%",X(v.mu)-15,H-15);
+  ctx.fillText((hi*100).toFixed(1)+"%",W-pad.r-40,H-15);
+
+  $("graphNote").textContent = m.id==="density"
+    ? "The vertical marker shows the x-value where the density height is evaluated."
+    : "The shaded area represents the relevant left-tail cumulative probability.";
+}
+
+const tabs=$("tabs");
+modes.forEach((m,i)=>{
+  const b=document.createElement("button");
+  b.className="tab"+(i===0?" active":"");
+  b.textContent=m.label;
+  b.addEventListener("click",()=>{
+    current=i;
+    [...tabs.children].forEach((x,j)=>x.classList.toggle("active",j===i));
+    configureModeUI();
+  });
+  tabs.appendChild(b);
+});
+
+["mu","sigma","x","p"].forEach(id=>$(id).addEventListener("input",update));
+$("check").addEventListener("click",check);
+$("newValues").addEventListener("click",randomize);
+$("showSolution").addEventListener("click",showSolution);
+$("nextPractice").addEventListener("click",nextPractice);
+$("restartPractice").addEventListener("click",()=>startPractice(true));
+
+$("mu").value="0.08"; $("sigma").value="0.20"; $("x").value="0.05"; $("p").value="0.05";
+configureModeUI();
+</script>
+</body>
+</html>
