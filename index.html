@@ -17,16 +17,18 @@ h1{font-size:clamp(1.55rem,4vw,2.1rem);margin:0 0 6px}
 .tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
 .tab{border:0;border-radius:9px;padding:10px 14px;font-weight:700;cursor:pointer;background:#e9edf4;color:#263142}
 .tab.active{background:var(--accent);color:#fff}
-.grid{display:grid;grid-template-columns:.9fr 1.1fr;gap:16px}
+.grid{display:grid;grid-template-columns:.92fr 1.08fr;gap:16px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
-.controls{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.controls.three{grid-template-columns:repeat(3,1fr)}
-label{display:block;font-weight:700;font-size:.9rem;margin-bottom:5px}
-input{width:100%;padding:10px 11px;border:1px solid #b8c0cf;border-radius:9px;font:inherit}
+.slider-grid{display:grid;grid-template-columns:1fr;gap:12px}
+.slider-row{display:grid;grid-template-columns:130px 1fr 76px;gap:10px;align-items:center}
+.slider-row label{font-weight:700;font-size:.92rem}
+.slider-row input[type=range]{width:100%}
+.valuebox{font-variant-numeric:tabular-nums;text-align:right;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:#fafbfc}
 .note{color:var(--muted);font-size:.9rem}
 .taskbox{margin-top:16px;padding:14px;border-radius:10px;background:#f8fafc;border:1px solid var(--line)}
 .task{font-size:1.06rem;margin:0}
 .answer-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;margin-top:14px}
+input[type=number]{width:100%;padding:10px 11px;border:1px solid #b8c0cf;border-radius:9px;font:inherit}
 button{font:inherit;border:0;border-radius:9px;padding:11px 14px;cursor:pointer;font-weight:700}
 .primary{background:var(--accent);color:#fff}
 .secondary{background:#e9edf4;color:#263142}
@@ -38,34 +40,44 @@ button{font:inherit;border:0;border-radius:9px;padding:11px 14px;cursor:pointer;
 canvas{width:100%;height:420px;border:1px solid var(--line);border-radius:10px;background:#fff}
 .graph-caption{margin-top:8px;color:var(--muted);font-size:.92rem}
 .concept{margin-top:12px;padding:10px 12px;border-left:4px solid var(--accent);background:#f7f9fc}
-@media(max-width:850px){.grid{grid-template-columns:1fr}.controls,.controls.three{grid-template-columns:1fr 1fr}}
-@media(max-width:520px){.controls,.controls.three{grid-template-columns:1fr}.answer-row{grid-template-columns:1fr}}
+.task-param{font-weight:700}
+@media(max-width:850px){.grid{grid-template-columns:1fr}}
+@media(max-width:560px){
+  .slider-row{grid-template-columns:1fr}
+  .valuebox{text-align:left}
+  .answer-row{grid-template-columns:1fr}
+}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>Normal Distribution – Visual Practice</h1>
-  <p class="sub">Start from the standard normal distribution, enter the task values yourself, and observe how the curve and the relevant probability region change.</p>
+  <p class="sub">Each task starts from the standard normal distribution. Read the task, set the parameters on the sliders, observe the curve, and calculate the requested quantity.</p>
 
   <div class="tabs">
-    <button class="tab active" data-page="left">NORM.DIST – below x</button>
-    <button class="tab" data-page="density">NORM.DIST – density value</button>
-    <button class="tab" data-page="inv">NORM.INV</button>
-    <button class="tab" data-page="between">NORM.DIST – between two returns</button>
+    <button class="tab active" data-page="left">Task 1</button>
+    <button class="tab" data-page="density">Task 2</button>
+    <button class="tab" data-page="inv">Task 3</button>
+    <button class="tab" data-page="between">Task 4</button>
   </div>
 
   <div class="grid">
     <section class="card">
-      <div id="controls"></div>
-      <p class="note">Starting values are μ = 0 and σ = 1 (standard normal distribution). Enter returns as decimals: 5% = 0.05.</p>
+      <div id="sliders"></div>
+      <p class="note">The graph controls always start at μ = 0 and σ = 1. Set them to the values given in the task.</p>
 
       <div class="taskbox">
         <p class="task" id="taskText"></p>
       </div>
 
+      <div class="actions">
+        <button class="secondary" id="newTask">New task</button>
+        <button class="secondary" id="reset">Reset graph to standard normal</button>
+      </div>
+
       <div class="answer-row">
         <div>
-          <label for="answer">Your answer</label>
+          <label for="answer"><strong>Your numerical answer</strong></label>
           <input id="answer" type="number" step="any" placeholder="Enter your result">
         </div>
         <button class="primary" id="check">Check</button>
@@ -74,7 +86,6 @@ canvas{width:100%;height:420px;border:1px solid var(--line);border-radius:10px;b
       <div class="feedback" id="feedback" aria-live="polite"></div>
 
       <div class="actions">
-        <button class="secondary" id="reset">Reset to standard normal</button>
         <button class="secondary" id="showSolution">Show solution</button>
       </div>
 
@@ -91,6 +102,8 @@ canvas{width:100%;height:420px;border:1px solid var(--line);border-radius:10px;b
 
 <script>
 let page="left";
+let task={mu:0.08,sigma:0.20,x:0.15,p:0.05,x1:0.05,x2:0.10};
+
 const $=id=>document.getElementById(id);
 
 function erf(x){
@@ -112,101 +125,136 @@ function invNorm(p){
   q=p-.5;r=q*q;
   return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5])*q/(((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1)
 }
-function pct(v){return (v*100).toFixed(2).replace(/\.00$/,"")+"%"}
+function pct(v){return (v*100).toFixed(1).replace(/\.0$/,"")+"%"}
 
-function renderControls(){
-  if(page==="inv"){
-    $("controls").innerHTML=`
-      <div class="controls three">
-        <div><label>Mean (μ)</label><input id="mu" type="number" step="0.01" value="0"></div>
-        <div><label>Std. dev. (σ)</label><input id="sigma" type="number" step="0.01" min="0.01" value="1"></div>
-        <div><label>Left-tail probability</label><input id="p" type="number" step="0.01" min="0.001" max="0.999" value="0.05"></div>
+function buildSliders(){
+  let html=`
+    <div class="slider-grid">
+      <div class="slider-row">
+        <label for="mu">Mean (μ)</label>
+        <input id="mu" type="range" min="-0.75" max="0.75" step="0.01" value="0">
+        <span class="valuebox" id="muVal">0.00</span>
+      </div>
+      <div class="slider-row">
+        <label for="sigma">Std. dev. (σ)</label>
+        <input id="sigma" type="range" min="0.20" max="1.20" step="0.01" value="1">
+        <span class="valuebox" id="sigmaVal">1.00</span>
       </div>`;
-  }else if(page==="between"){
-    $("controls").innerHTML=`
-      <div class="controls">
-        <div><label>Mean (μ)</label><input id="mu" type="number" step="0.01" value="0"></div>
-        <div><label>Std. dev. (σ)</label><input id="sigma" type="number" step="0.01" min="0.01" value="1"></div>
-        <div><label>Lower return</label><input id="x1" type="number" step="0.01" value="0.05"></div>
-        <div><label>Upper return</label><input id="x2" type="number" step="0.01" value="0.10"></div>
+  if(page==="left"||page==="density"){
+    html+=`
+      <div class="slider-row">
+        <label for="x">Return (x)</label>
+        <input id="x" type="range" min="-1.75" max="1.75" step="0.01" value="0">
+        <span class="valuebox" id="xVal">0.00</span>
+      </div>`;
+  }else if(page==="inv"){
+    html+=`
+      <div class="slider-row">
+        <label for="p">Left-tail p</label>
+        <input id="p" type="range" min="0.01" max="0.99" step="0.01" value="0.50">
+        <span class="valuebox" id="pVal">0.50</span>
       </div>`;
   }else{
-    $("controls").innerHTML=`
-      <div class="controls three">
-        <div><label>Mean (μ)</label><input id="mu" type="number" step="0.01" value="0"></div>
-        <div><label>Std. dev. (σ)</label><input id="sigma" type="number" step="0.01" min="0.01" value="1"></div>
-        <div><label>Return (x)</label><input id="x" type="number" step="0.01" value="0.05"></div>
+    html+=`
+      <div class="slider-row">
+        <label for="x1">Lower return</label>
+        <input id="x1" type="range" min="-1.75" max="1.70" step="0.01" value="-0.50">
+        <span class="valuebox" id="x1Val">-0.50</span>
+      </div>
+      <div class="slider-row">
+        <label for="x2">Upper return</label>
+        <input id="x2" type="range" min="-1.70" max="1.75" step="0.01" value="0.50">
+        <span class="valuebox" id="x2Val">0.50</span>
       </div>`;
   }
-  $("controls").querySelectorAll("input").forEach(el=>el.addEventListener("input",update));
+  html+="</div>";
+  $("sliders").innerHTML=html;
+  $("sliders").querySelectorAll("input").forEach(el=>el.addEventListener("input",updateGraphFromControls));
 }
 
-function state(){
+function controlState(){
   return {
     mu:+$("mu").value,
     sigma:+$("sigma").value,
     x:$("x")?+$("x").value:null,
+    p:$("p")?+$("p").value:null,
     x1:$("x1")?+$("x1").value:null,
-    x2:$("x2")?+$("x2").value:null,
-    p:$("p")?+$("p").value:null
+    x2:$("x2")?+$("x2").value:null
   };
 }
-function valid(v){
-  if(!(v.sigma>0)) return false;
-  if(page==="inv" && !(v.p>0&&v.p<1)) return false;
-  if(page==="between" && !(v.x1<v.x2)) return false;
-  return true;
+
+function updateValueBoxes(){
+  ["mu","sigma","x","p","x1","x2"].forEach(id=>{
+    const el=$(id), box=$(id+"Val");
+    if(el&&box) box.textContent=(+el.value).toFixed(2);
+  });
 }
 
-function result(){
-  const v=state();
-  if(page==="left") return cdf((v.x-v.mu)/v.sigma);
-  if(page==="density") return pdf(v.x,v.mu,v.sigma);
-  if(page==="inv") return v.mu+v.sigma*invNorm(v.p);
-  return cdf((v.x2-v.mu)/v.sigma)-cdf((v.x1-v.mu)/v.sigma);
-}
+function generateTask(){
+  // Values deliberately stay within the fixed chart range.
+  const mus=[-0.30,-0.20,-0.10,0,0.08,0.10,0.20,0.30];
+  const sigmas=[0.20,0.25,0.30,0.40,0.50,0.60,0.80,1.00];
+  task.mu=mus[Math.floor(Math.random()*mus.length)];
+  task.sigma=sigmas[Math.floor(Math.random()*sigmas.length)];
 
-function taskText(){
-  const v=state();
-  if(page==="left")
-    return `A stock return is normally distributed with an expected return of ${pct(v.mu)} and a standard deviation of ${pct(v.sigma)}. What is the probability that the return will be lower than ${pct(v.x)}?`;
-  if(page==="density")
-    return `A stock return is normally distributed with an expected return of ${pct(v.mu)} and a standard deviation of ${pct(v.sigma)}. Calculate the value of the normal density function at a return of ${pct(v.x)}.`;
-  if(page==="inv")
-    return `A stock return is normally distributed with an expected return of ${pct(v.mu)} and a standard deviation of ${pct(v.sigma)}. Determine the return below which ${(100*v.p).toFixed(1)}% of possible returns are expected to fall.`;
-  return `A stock return is normally distributed with an expected return of ${pct(v.mu)} and a standard deviation of ${pct(v.sigma)}. What is the probability that the return will be between ${pct(v.x1)} and ${pct(v.x2)}?`;
-}
-
-function excelFormula(){
-  const v=state();
-  if(page==="left") return `=NORM.DIST(${v.x},${v.mu},${v.sigma},TRUE)`;
-  if(page==="density") return `=NORM.DIST(${v.x},${v.mu},${v.sigma},FALSE)`;
-  if(page==="inv") return `=NORM.INV(${v.p},${v.mu},${v.sigma})`;
-  return `=NORM.DIST(${v.x2},${v.mu},${v.sigma},TRUE)-NORM.DIST(${v.x1},${v.mu},${v.sigma},TRUE)`;
-}
-
-function update(){
-  const v=state();
-  if(!valid(v)){
-    $("feedback").className="feedback bad";
-    $("feedback").textContent="Check the input values.";
-    return;
+  if(page==="left"||page==="density"){
+    const zChoices=[-1.5,-1,-0.75,-0.5,0.5,0.75,1,1.5];
+    let x=task.mu+task.sigma*zChoices[Math.floor(Math.random()*zChoices.length)];
+    task.x=Math.max(-1.70,Math.min(1.70,Math.round(x*100)/100));
+  }else if(page==="inv"){
+    const ps=[0.05,0.10,0.20,0.25,0.75,0.80,0.90,0.95];
+    task.p=ps[Math.floor(Math.random()*ps.length)];
+  }else{
+    const pairs=[[-1,0],[-0.75,0.75],[-0.5,1],[-1,1],[-0.5,0.5]];
+    const pair=pairs[Math.floor(Math.random()*pairs.length)];
+    let a=task.mu+task.sigma*pair[0];
+    let b=task.mu+task.sigma*pair[1];
+    task.x1=Math.max(-1.70,Math.min(1.60,Math.round(a*100)/100));
+    task.x2=Math.max(task.x1+0.05,Math.min(1.70,Math.round(b*100)/100));
   }
-  $("taskText").textContent=taskText();
+  renderTaskText();
   $("answer").value="";
   $("feedback").textContent="";
   $("solution").style.display="none";
+}
 
+function renderTaskText(){
   if(page==="left"){
-    $("concept").innerHTML="<strong>Interpretation:</strong> the answer is the <strong>area under the normal density curve to the left of the given return</strong>.";
+    $("taskText").innerHTML=`A stock return is normally distributed with an expected return of <span class="task-param">${pct(task.mu)}</span> and a standard deviation of <span class="task-param">${pct(task.sigma)}</span>. What is the probability that the return will be lower than <span class="task-param">${pct(task.x)}</span>?`;
+    $("concept").innerHTML="<strong>Meaning:</strong> the answer is an <strong>area under the density curve</strong>, from the far left up to the specified return.";
   }else if(page==="density"){
-    $("concept").innerHTML="<strong>Interpretation:</strong> the answer is the <strong>value of the density function at the given return</strong>. It is not an interval probability.";
+    $("taskText").innerHTML=`A stock return is normally distributed with an expected return of <span class="task-param">${pct(task.mu)}</span> and a standard deviation of <span class="task-param">${pct(task.sigma)}</span>. Use the normal density function to describe how strongly outcomes are concentrated around a return of <span class="task-param">${pct(task.x)}</span>.`;
+    $("concept").innerHTML="<strong>Meaning:</strong> for a continuous distribution, the probability of one exact return is zero. The density function instead measures the <strong>local concentration of probability around that return</strong>; its value is represented by the height of the curve.";
   }else if(page==="inv"){
-    $("concept").innerHTML="<strong>Interpretation:</strong> the probability is given first. The task is to find the <strong>return on the horizontal axis</strong> that leaves this area under the curve to its left.";
+    $("taskText").innerHTML=`A stock return is normally distributed with an expected return of <span class="task-param">${pct(task.mu)}</span> and a standard deviation of <span class="task-param">${pct(task.sigma)}</span>. Determine the return below which <span class="task-param">${(100*task.p).toFixed(0)}%</span> of possible returns are expected to fall.`;
+    $("concept").innerHTML="<strong>Meaning:</strong> the probability (area) is given. The task is to find the <strong>return on the horizontal axis</strong> where that left-tail area ends.";
   }else{
-    $("concept").innerHTML="<strong>Interpretation:</strong> the answer is the <strong>area under the normal density curve between the two given returns</strong>.";
+    $("taskText").innerHTML=`A stock return is normally distributed with an expected return of <span class="task-param">${pct(task.mu)}</span> and a standard deviation of <span class="task-param">${pct(task.sigma)}</span>. What is the probability that the return will be between <span class="task-param">${pct(task.x1)}</span> and <span class="task-param">${pct(task.x2)}</span>?`;
+    $("concept").innerHTML="<strong>Meaning:</strong> the answer is the <strong>area under the density curve between the two specified returns</strong>.";
   }
-  draw();
+}
+
+function taskResult(){
+  if(page==="left") return cdf((task.x-task.mu)/task.sigma);
+  if(page==="density") return pdf(task.x,task.mu,task.sigma);
+  if(page==="inv") return task.mu+task.sigma*invNorm(task.p);
+  return cdf((task.x2-task.mu)/task.sigma)-cdf((task.x1-task.mu)/task.sigma);
+}
+
+function excelFormula(){
+  if(page==="left") return `=NORM.DIST(${task.x},${task.mu},${task.sigma},TRUE)`;
+  if(page==="density") return `=NORM.DIST(${task.x},${task.mu},${task.sigma},FALSE)`;
+  if(page==="inv") return `=NORM.INV(${task.p},${task.mu},${task.sigma})`;
+  return `=NORM.DIST(${task.x2},${task.mu},${task.sigma},TRUE)-NORM.DIST(${task.x1},${task.mu},${task.sigma},TRUE)`;
+}
+
+function resetGraph(){
+  $("mu").value=0; $("sigma").value=1;
+  if($("x")) $("x").value=0;
+  if($("p")) $("p").value=.5;
+  if($("x1")) $("x1").value=-.5;
+  if($("x2")) $("x2").value=.5;
+  updateGraphFromControls();
 }
 
 function check(){
@@ -216,89 +264,81 @@ function check(){
     $("feedback").textContent="Enter a numerical answer.";
     return;
   }
-  const r=result(), tol=Math.max(.0006,Math.abs(r)*.005);
+  const r=taskResult();
+  const tol=Math.max(.0006,Math.abs(r)*.005);
   if(Math.abs(u-r)<=tol){
     $("feedback").className="feedback good";
     $("feedback").textContent="Correct.";
   }else{
     $("feedback").className="feedback bad";
-    $("feedback").textContent="Not quite. Use the graph to decide what the requested quantity represents.";
+    $("feedback").textContent="Not quite. First identify whether the task asks for an area, a local density value, or the return corresponding to a given area.";
   }
 }
 
 function showSolution(){
-  const r=result();
-  let out="";
-  if(page==="left"||page==="between") out=`Probability = ${(100*r).toFixed(2)}%`;
-  else if(page==="density") out=`Density function value = ${r.toFixed(4)}`;
-  else out=`Return = ${pct(r)}`;
-  $("solution").innerHTML=`<strong>Solution:</strong> ${out}<br><strong>Excel:</strong> <span class="code">${excelFormula()}</span>`;
+  const r=taskResult();
+  let text="";
+  if(page==="left"||page==="between") text=`Probability = ${(100*r).toFixed(2)}%`;
+  else if(page==="density") text=`Density value = ${r.toFixed(4)}`;
+  else text=`Return = ${pct(r)}`;
+  $("solution").innerHTML=`<strong>Solution:</strong> ${text}<br><strong>Excel:</strong> <span class="code">${excelFormula()}</span>`;
   $("solution").style.display="block";
 }
 
-function resetStandard(){
-  $("mu").value="0"; $("sigma").value="1";
-  if($("x")) $("x").value="0.05";
-  if($("p")) $("p").value="0.05";
-  if($("x1")) $("x1").value="0.05";
-  if($("x2")) $("x2").value="0.10";
-  update();
+function updateGraphFromControls(){
+  updateValueBoxes();
+  draw();
 }
 
 function draw(){
-  const c=$("chart"),ctx=c.getContext("2d"),v=state();
+  const c=$("chart"),ctx=c.getContext("2d"),v=controlState();
   const W=c.width,H=c.height,pad={l:74,r:26,t:30,b:62};
 
-  // FIXED coordinate system for every task and every parameter change
-  const XMIN=-2.0, XMAX=2.0, YMIN=0, YMAX=2.2;
+  // Fixed coordinate system
+  const XMIN=-2, XMAX=2, YMIN=0, YMAX=2.2;
   const X=x=>pad.l+(x-XMIN)/(XMAX-XMIN)*(W-pad.l-pad.r);
   const Y=y=>H-pad.b-(y-YMIN)/(YMAX-YMIN)*(H-pad.t-pad.b);
 
   ctx.clearRect(0,0,W,H);
   ctx.fillStyle="#fff";ctx.fillRect(0,0,W,H);
 
-  // grid and fixed ticks
-  const xticks=[-2,-1,0,1,2];
-  const yticks=[0,0.5,1.0,1.5,2.0];
+  const xticks=[-2,-1,0,1,2], yticks=[0,.5,1,1.5,2];
   ctx.strokeStyle="#e4e7ec";ctx.lineWidth=1;ctx.setLineDash([4,4]);
   xticks.forEach(x=>{ctx.beginPath();ctx.moveTo(X(x),pad.t);ctx.lineTo(X(x),H-pad.b);ctx.stroke()});
   yticks.forEach(y=>{ctx.beginPath();ctx.moveTo(pad.l,Y(y));ctx.lineTo(W-pad.r,Y(y));ctx.stroke()});
   ctx.setLineDash([]);
 
-  // axes
   ctx.strokeStyle="#344054";ctx.lineWidth=1.6;
   ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,H-pad.b);ctx.lineTo(W-pad.r,H-pad.b);ctx.stroke();
 
   ctx.fillStyle="#475467";ctx.font="13px Arial";
-  ctx.textAlign="center";
-  xticks.forEach(x=>ctx.fillText(x.toFixed(0),X(x),H-pad.b+22));
-  ctx.textAlign="right";
-  yticks.forEach(y=>ctx.fillText(y.toFixed(1),pad.l-10,Y(y)+4));
+  ctx.textAlign="center";xticks.forEach(x=>ctx.fillText(x.toFixed(0),X(x),H-pad.b+22));
+  ctx.textAlign="right";yticks.forEach(y=>ctx.fillText(y.toFixed(1),pad.l-10,Y(y)+4));
 
-  ctx.fillStyle="#344054";ctx.font="14px Arial";
-  ctx.textAlign="center";ctx.fillText("Return / x",W-pad.r-32,H-18);
+  ctx.fillStyle="#344054";ctx.font="14px Arial";ctx.textAlign="center";
+  ctx.fillText("Return / x",W-pad.r-30,H-18);
   ctx.save();ctx.translate(18,(pad.t+H-pad.b)/2);ctx.rotate(-Math.PI/2);ctx.fillText("Density f(x)",0,0);ctx.restore();
 
-  // shaded areas
   function shade(a,b){
-    const aa=Math.max(a,XMIN), bb=Math.min(b,XMAX);
-    if(!(aa<bb)) return;
+    const aa=Math.max(a,XMIN),bb=Math.min(b,XMAX);
+    if(!(aa<bb))return;
     ctx.fillStyle="rgba(49,94,168,.20)";
     ctx.beginPath();ctx.moveTo(X(aa),Y(0));
-    for(let i=0;i<=500;i++){
-      const x=aa+(bb-aa)*i/500;
+    for(let i=0;i<=450;i++){
+      const x=aa+(bb-aa)*i/450;
       ctx.lineTo(X(x),Y(Math.min(pdf(x,v.mu,v.sigma),YMAX)));
     }
     ctx.lineTo(X(bb),Y(0));ctx.closePath();ctx.fill();
   }
 
   if(page==="left") shade(XMIN,v.x);
-  if(page==="inv") shade(XMIN,result());
-  if(page==="between") shade(v.x1,v.x2);
+  if(page==="inv"){
+    const invx=v.mu+v.sigma*invNorm(v.p);
+    shade(XMIN,invx);
+  }
+  if(page==="between" && v.x1<v.x2) shade(v.x1,v.x2);
 
-  // density curve changes shape and shifts inside fixed axes
-  ctx.strokeStyle="#315ea8";ctx.lineWidth=3;
-  ctx.beginPath();
+  ctx.strokeStyle="#315ea8";ctx.lineWidth=3;ctx.beginPath();
   for(let i=0;i<=700;i++){
     const x=XMIN+(XMAX-XMIN)*i/700;
     const y=Math.min(pdf(x,v.mu,v.sigma),YMAX);
@@ -306,43 +346,37 @@ function draw(){
   }
   ctx.stroke();
 
-  // mean line
+  const markers=[];
+  if(page==="left"||page==="density") markers.push(v.x);
+  if(page==="inv") markers.push(v.mu+v.sigma*invNorm(v.p));
+  if(page==="between"){markers.push(v.x1);markers.push(v.x2);}
+  markers.forEach(mx=>{
+    if(mx<XMIN||mx>XMAX)return;
+    const my=Math.min(pdf(mx,v.mu,v.sigma),YMAX);
+    ctx.strokeStyle="#9a3f4d";ctx.setLineDash([6,4]);ctx.lineWidth=1.4;
+    ctx.beginPath();ctx.moveTo(X(mx),H-pad.b);ctx.lineTo(X(mx),Y(my));ctx.stroke();ctx.setLineDash([]);
+    if(page==="density"){
+      ctx.fillStyle="#9a3f4d";ctx.beginPath();ctx.arc(X(mx),Y(my),5,0,Math.PI*2);ctx.fill();
+    }
+  });
+
   if(v.mu>=XMIN&&v.mu<=XMAX){
     ctx.strokeStyle="#98a2b3";ctx.setLineDash([3,4]);
     ctx.beginPath();ctx.moveTo(X(v.mu),H-pad.b);ctx.lineTo(X(v.mu),Y(Math.min(pdf(v.mu,v.mu,v.sigma),YMAX)));ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle="#667085";ctx.font="12px Arial";ctx.textAlign="center";
-    ctx.fillText("μ",X(v.mu),H-pad.b+40);
   }
-
-  // relevant markers
-  const markers=[];
-  if(page==="left"||page==="density") markers.push({x:v.x,label:"x"});
-  if(page==="inv") markers.push({x:result(),label:"x*"});
-  if(page==="between"){markers.push({x:v.x1,label:"lower"});markers.push({x:v.x2,label:"upper"});}
-  markers.forEach(m=>{
-    if(m.x<XMIN||m.x>XMAX) return;
-    const y=Math.min(pdf(m.x,v.mu,v.sigma),YMAX);
-    ctx.strokeStyle="#9a3f4d";ctx.setLineDash([6,4]);ctx.lineWidth=1.4;
-    ctx.beginPath();ctx.moveTo(X(m.x),H-pad.b);ctx.lineTo(X(m.x),Y(y));ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle="#9a3f4d";ctx.font="bold 12px Arial";ctx.textAlign="center";
-    ctx.fillText(`${m.label}=${m.x.toFixed(2)}`,X(m.x),pad.t+18);
-    if(page==="density"){
-      ctx.beginPath();ctx.arc(X(m.x),Y(y),5,0,Math.PI*2);ctx.fill();
-    }
-  });
 
   ctx.fillStyle="#101828";ctx.font="bold 15px Arial";ctx.textAlign="left";
   ctx.fillText(`Fixed axes | μ = ${v.mu.toFixed(2)}, σ = ${v.sigma.toFixed(2)}`,pad.l+8,pad.t+2);
 
   if(page==="left"){
-    $("graphCaption").textContent="The axes stay fixed. Changing μ shifts the density curve left or right; changing σ changes its width and height. The shaded area is P(R < x).";
+    $("graphCaption").textContent="Set μ, σ and x from the task. The shaded region shows the probability below x.";
   }else if(page==="density"){
-    $("graphCaption").textContent="The axes stay fixed. The curve itself moves and changes shape. The marked point shows where the density-function value is evaluated.";
+    $("graphCaption").textContent="Set μ, σ and x from the task. The red point shows the local density at x; for a continuous distribution, P(R = x) itself is zero.";
   }else if(page==="inv"){
-    $("graphCaption").textContent="The shaded left-tail probability is given. NORM.INV finds the return where that shaded area ends.";
+    $("graphCaption").textContent="Set μ, σ and the left-tail probability from the task. The shaded area is given; the endpoint on the x-axis is the unknown return.";
   }else{
-    $("graphCaption").textContent="The shaded region is the probability that the return falls between the lower and upper return values.";
+    $("graphCaption").textContent="Set μ, σ and both return limits from the task. The shaded region is the probability between the two returns.";
   }
 }
 
@@ -350,15 +384,20 @@ document.querySelectorAll(".tab").forEach(btn=>{
   btn.addEventListener("click",()=>{
     page=btn.dataset.page;
     document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b===btn));
-    renderControls();update();
+    buildSliders();
+    resetGraph();
+    generateTask();
   });
 });
+
+$("newTask").addEventListener("click",generateTask);
+$("reset").addEventListener("click",resetGraph);
 $("check").addEventListener("click",check);
 $("showSolution").addEventListener("click",showSolution);
-$("reset").addEventListener("click",resetStandard);
 
-renderControls();
-update();
+buildSliders();
+resetGraph();
+generateTask();
 </script>
 </body>
 </html>
